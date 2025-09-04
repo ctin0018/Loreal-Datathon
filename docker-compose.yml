@@ -1,0 +1,43 @@
+# The 'version' attribute has been removed as it is obsolete.
+
+services:
+  timescaledb:
+    image: timescale/timescaledb-ha:pg16  # <-- THE CORRECTED IMAGE TAG
+    container_name: timescaledb
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=youtubedata
+    volumes:
+      - timescaledb-data:/var/lib/postgresql/data
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - timescaledb
+
+  enrichment-service:
+    build:
+      context: .
+      dockerfile: python/Dockerfile
+    # This service will start automatically after the database is ready
+    # and begin processing comments.
+    container_name: enrichment-service
+    env_file:
+      - .env
+    depends_on:
+      - timescaledb
+    restart: on-failure
+    
+volumes:
+  timescaledb-data:
+  grafana-data:

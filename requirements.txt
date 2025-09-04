@@ -1,0 +1,15 @@
+# For asynchronous HTTP requests to the LLM API
+aiohttp
+
+# The core library for interacting with PostgreSQL/TimescaleDB
+sqlalchemy
+psycopg2-binary # The database driver
+
+# For asynchronous database operations with SQLAlchemy
+asyncpg
+
+# For reading and manipulating data (optional but highly recommended)
+pandas
+
+# For environment variable management (for API keys, etc.)
+python-dotenv
