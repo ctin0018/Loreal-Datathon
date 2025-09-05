@@ -1,3 +1,5 @@
+# File: src/models/youtube_models.py (Datathon Hotfix Version)
+
 from sqlalchemy import (
     Column,
     String,
@@ -7,8 +9,8 @@ from sqlalchemy import (
     Text,
     PrimaryKeyConstraint,
     Numeric,
-    Boolean,
-    ForeignKey
+    Boolean
+    # We remove ForeignKey from the imports as it is no longer used
 )
 from sqlalchemy.orm import declarative_base, relationship
 
@@ -33,8 +35,10 @@ class Video(Base):
     comment_count = Column(Numeric)
     topic_categories = Column(Text)
     
-    # Optional: Defines the "one-to-many" relationship from the Video's perspective
-    comments = relationship("Comment", back_populates="video")
+    # === CHANGE 1: COMMENT OUT THE RELATIONSHIP ===
+    # Since there's no longer an enforced ForeignKey, this ORM-level
+    # relationship should also be disabled to avoid confusion.
+    # comments = relationship("Comment", back_populates="video")
 
 class Comment(Base):
     __tablename__ = 'comments'
@@ -48,9 +52,11 @@ class Comment(Base):
     parent_comment_id = Column(BigInteger)
     channel_id = Column(BigInteger)
     
-    # === OPTIMIZATION 1: ADDED FOREIGN KEY ===
-    # This links this column to the 'videos.video_id' primary key.
-    video_id = Column(Text, ForeignKey('videos.video_id'))
+    # === CHANGE 2: REMOVE THE ForeignKey CONSTRAINT ===
+    # This is the most important change. We are now just defining a simple
+    # Text column. The data will be loaded, but the database will not check
+    # if the video_id exists in the 'videos' table.
+    video_id = Column(Text) # The ForeignKey('videos.video_id') part is removed.
     
     author_id = Column(BigInteger)
     text_original = Column(Text)
@@ -58,14 +64,12 @@ class Comment(Base):
     published_at = Column(DateTime(timezone=True), nullable=False)
     updated_at = Column(DateTime(timezone=True))
     
-    # === NEW AI ENRICHMENT COLUMNS ===
-    # === OPTIMIZATION 2: ADDED INDEXES ===
-    # index=True tells the database to create an index on these columns
-    # for much faster filtering and grouping in Grafana.
+    # All the AI enrichment and index columns are perfect, no changes needed here.
     sentiment = Column(String(50), index=True)
     category = Column(String(100), index=True) 
     quality_score = Column(Integer)
     is_spam = Column(Boolean, default=False, index=True)
+    language = Column(String(50), index=True)
 
-    # Optional: Defines the "many-to-one" relationship from the Comment's perspective
-    video = relationship("Video", back_populates="comments")
+    # === CHANGE 3: COMMENT OUT THE CORRESPONDING RELATIONSHIP ===
+    # video = relationship("Video", back_populates="comments")
