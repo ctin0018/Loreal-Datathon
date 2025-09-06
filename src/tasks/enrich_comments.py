@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 # Configuration
-LLM_API_ENDPOINT = "https://api.openai.com/v1/chat/completions"
+LLM_API_ENDPOINT = "https://api.anthropic.com/v1/messages"
 LLM_API_KEY = os.getenv("OPENAI_API_KEY")
 
 async def fetch_unprocessed_comments(db: AsyncSession, batch_size: int = 100) -> List[Comment]:
