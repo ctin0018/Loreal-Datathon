@@ -1,24 +1,17 @@
-# File: src/models/youtube_models.py (Datathon Hotfix Version)
+# File: src/models/youtube_models.py
 
 from sqlalchemy import (
-    Column,
-    String,
-    BigInteger,
-    Integer,
-    DateTime,
-    Text,
-    PrimaryKeyConstraint,
-    Numeric,
-    Boolean
-    # We remove ForeignKey from the imports as it is no longer used
+    Column, String, BigInteger, Integer, DateTime, Text,
+    PrimaryKeyConstraint, Numeric, Boolean, ARRAY
 )
-from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
 
 class Video(Base):
     __tablename__ = 'videos'
     
+    # --- Original Columns from CSV ---
     kind = Column(Text)
     video_id = Column(Text, primary_key=True)
     published_at = Column(DateTime(timezone=True))
@@ -35,10 +28,11 @@ class Video(Base):
     comment_count = Column(Numeric)
     topic_categories = Column(Text)
     
-    # === CHANGE 1: COMMENT OUT THE RELATIONSHIP ===
-    # Since there's no longer an enforced ForeignKey, this ORM-level
-    # relationship should also be disabled to avoid confusion.
-    # comments = relationship("Comment", back_populates="video")
+    # === NEW CLEANED & STRUCTURED COLUMNS ===
+    description_clean = Column(Text)
+    duration_seconds = Column(Integer)
+    language_name = Column(String(100), index=True)
+    topic_categories_clean = Column(ARRAY(Text))
 
 class Comment(Base):
     __tablename__ = 'comments'
@@ -51,25 +45,16 @@ class Comment(Base):
     comment_id = Column(BigInteger)
     parent_comment_id = Column(BigInteger)
     channel_id = Column(BigInteger)
-    
-    # === CHANGE 2: REMOVE THE ForeignKey CONSTRAINT ===
-    # This is the most important change. We are now just defining a simple
-    # Text column. The data will be loaded, but the database will not check
-    # if the video_id exists in the 'videos' table.
-    video_id = Column(Text) # The ForeignKey('videos.video_id') part is removed.
-    
+    video_id = Column(Text) # ForeignKey is removed for the datathon
     author_id = Column(BigInteger)
     text_original = Column(Text)
     like_count = Column(Numeric)
     published_at = Column(DateTime(timezone=True), nullable=False)
     updated_at = Column(DateTime(timezone=True))
     
-    # All the AI enrichment and index columns are perfect, no changes needed here.
+    # === AI ENRICHMENT COLUMNS ===
     sentiment = Column(String(50), index=True)
     category = Column(String(100), index=True) 
     quality_score = Column(Integer)
     is_spam = Column(Boolean, default=False, index=True)
     language = Column(String(50), index=True)
-
-    # === CHANGE 3: COMMENT OUT THE CORRESPONDING RELATIONSHIP ===
-    # video = relationship("Video", back_populates="comments")
