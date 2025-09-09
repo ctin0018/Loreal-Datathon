@@ -2,7 +2,7 @@
 
 services:
   timescaledb:
-    image: timescale/timescaledb-ha:pg16  # <-- THE CORRECTED IMAGE TAG
+    image: timescale/timescaledb-ha:pg16
     container_name: timescaledb
     restart: unless-stopped
     ports:

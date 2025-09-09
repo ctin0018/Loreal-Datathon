@@ -23,18 +23,26 @@ def main():
         help="Run the AI enrichment pipeline on the comments table."
     )
 
+    parser.add_argument(
+        "--clean-videos",
+        action="store_true",
+        help="Run the batch cleaning process on the videos table."
+    )
+
     args = parser.parse_args()
 
     if args.init_db:
         from src.init_db import bootstrap_database
         logging.info("Starting database initialization...")
         asyncio.run(bootstrap_database())
-
     elif args.enrich_comments:
         from src.tasks.enrich_comments import run_enrichment_pipeline
         logging.info("Starting comment enrichment pipeline...")
         asyncio.run(run_enrichment_pipeline())
-        
+    elif args.clean_videos:
+        from src.tasks.clean_video_data import main as clean_videos_main
+        logging.info("Starting video data cleaning pipeline...")
+        asyncio.run(clean_videos_main())
     else:
         print("No task specified. Use --help to see available options.")
 
