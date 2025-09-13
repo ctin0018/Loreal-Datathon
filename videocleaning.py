@@ -12,6 +12,9 @@ video_df = pd.read_csv("C:\\Users\\Daniel Puah\\Desktop\\Loreal Data\\videos.csv
 # print(video_df.columns)
 # print(video_df.head())
 
+# Drop useless columns
+video_df = video_df.drop(columns = "kind")
+
 # Check datatypes and missing values
 # video_df.info()
 video_df.isnull().sum()
@@ -104,7 +107,5 @@ def clean_topic(x):
 
 video_df['topicCategories_cleaned'] = video_df['topicCategories'].apply(clean_topic)
 
-
 # Final check
 video_df.info()
-

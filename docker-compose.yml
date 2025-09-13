@@ -6,13 +6,13 @@ services:
     container_name: timescaledb
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - "5433:5432"
     environment:
       - POSTGRES_USER=user
       - POSTGRES_PASSWORD=password
       - POSTGRES_DB=youtubedata
     volumes:
-      - timescaledb-data:/var/lib/postgresql/data
+      - timescaledb-data:/home/postgres/pgdata/data
 
   grafana:
     image: grafana/grafana-oss:latest

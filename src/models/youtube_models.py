@@ -2,7 +2,7 @@
 
 from sqlalchemy import (
     Column, String, BigInteger, Integer, DateTime, Text,
-    PrimaryKeyConstraint, Numeric, Boolean, ARRAY
+    PrimaryKeyConstraint, Numeric, Boolean, ARRAY, Float
 )
 from sqlalchemy.orm import declarative_base
 
@@ -30,9 +30,12 @@ class Video(Base):
     
     # === NEW CLEANED & STRUCTURED COLUMNS ===
     description_clean = Column(Text)
+    duration_hours = Column(Float)
+    duration_minutes = Column(Float)
     duration_seconds = Column(Integer)
     language_name = Column(String(100), index=True)
     topic_categories_clean = Column(ARRAY(Text))
+    is_cleaned = Column(Boolean, default=False, nullable=False)
 
 class Comment(Base):
     __tablename__ = 'comments'

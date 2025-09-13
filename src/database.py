@@ -9,7 +9,7 @@ load_dotenv()
 # This pulls credentials from your .env file
 DATABASE_URL = (
     f"postgresql+asyncpg://{os.getenv('POSTGRES_USER')}:{os.getenv('POSTGRES_PASSWORD')}"
-    f"@timescaledb:{os.getenv('POSTGRES_PORT', 5432)}/{os.getenv('POSTGRES_DB')}"
+    f"@localhost:{os.getenv('POSTGRES_PORT', 5432)}/{os.getenv('POSTGRES_DB')}"
 )
 
 # Engine and Session Definition 
