@@ -1,4 +1,5 @@
 import asyncio
+import multiprocessing
 import argparse
 import logging
 
@@ -6,6 +7,11 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def main():
+    # Set 'spawn' for safe multiprocessing with Torch/Transformers
+    try:
+        multiprocessing.set_start_method('spawn', force=True)
+    except RuntimeError:
+        pass
     """Parses command-line arguments and runs the requested task."""
     parser = argparse.ArgumentParser(description="L'Oréal Project Data Pipeline CLI")
     

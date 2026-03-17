@@ -9,7 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 # --- Local Application Imports ---
 from ..database import AsyncSessionLocal
-from ..models.youtube_models import Video
+from ..models.youtube_models import Video, VideoStaging
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy import delete
 
 # --- Logging Configuration ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - [%(funcName)s] - %(message)s')
@@ -42,25 +44,26 @@ class VideoCleaningService:
 	def __init__(self, db_session_factory):
 		self.async_session_factory = db_session_factory
 
-	async def _fetch_uncleaned_videos(self, db: AsyncSession, batch_size: int = 5000) -> pd.DataFrame:
-		"""Fetches a batch of videos that have not yet been cleaned."""
-		logger.info(f"Fetching up to {batch_size} uncleaned videos...")
-		stmt = select(Video).where(Video.is_cleaned == False).limit(batch_size)
+	async def _fetch_uncleaned_videos(self, db: AsyncSession, batch_size: int = 2000) -> pd.DataFrame:
+		"""Fetches a batch of videos from the staging table."""
+		logger.info(f"Fetching up to {batch_size} uncleaned videos from staging...")
+		stmt = select(VideoStaging).limit(batch_size)
 		result = await db.execute(stmt)
 		videos = result.scalars().all()
-		logger.info(f"Found {len(videos)} videos to clean.")
+		logger.info(f"Found {len(videos)} videos in staging to clean.")
 		if not videos:
 			return pd.DataFrame()
 
-		# DEBUG: Show which video_ids are being fetched
-		logger.info(f"Fetched video_ids: {[v.video_id for v in videos]}")
+		# Store video IDs for deletion later
+		self.batch_video_ids = [v.video_id for v in videos]
 
-		# === FIX #1: Explicitly create the dictionary to build the DataFrame correctly ===
 		video_data = [
 			{
-				"video_id": v.video_id, "description": v.description, "content_duration": v.content_duration,
+				"video_id": v.video_id, "published_at": v.published_at, "channel_id": v.channel_id, 
+				"title": v.title, "description": v.description, "tags": v.tags, 
 				"default_language": v.default_language, "default_audio_language": v.default_audio_language,
-				"topic_categories": v.topic_categories
+				"content_duration": v.content_duration, "view_count": v.view_count, "like_count": v.like_count, 
+				"favourite_count": v.favourite_count, "comment_count": v.comment_count, "topic_categories": v.topic_categories
 			}
 			for v in videos
 		]
@@ -84,54 +87,67 @@ class VideoCleaningService:
 		df['language_name'] = df['language_code'].map(lang_map).fillna(df['language_code']).fillna("Unknown")
 		df['topic_categories_clean'] = df['topic_categories'].apply(clean_topic_categories)
 
+		# Keep only final columns
+		df = df[['video_id', 'published_at', 'channel_id', 'title', 'description_clean', 'tags', 'language_name', 'duration_seconds', 'view_count', 'like_count', 'favourite_count', 'comment_count', 'topic_categories_clean']]
+		# Rename description_clean to description for final table
+		df = df.rename(columns={'description_clean': 'description', 'topic_categories_clean': 'topic_categories'})
+
+		# Convert pandas types to native Python types for asyncpg
+		df['published_at'] = pd.to_datetime(df['published_at']).dt.to_pydatetime()
+		df['duration_seconds'] = df['duration_seconds'].apply(lambda x: int(x) if pd.notna(x) else None)
+		df['view_count'] = df['view_count'].apply(lambda x: float(x) if pd.notna(x) else None)
+		df['like_count'] = df['like_count'].apply(lambda x: float(x) if pd.notna(x) else None)
+		df['favourite_count'] = df['favourite_count'].apply(lambda x: float(x) if pd.notna(x) else None)
+		df['comment_count'] = df['comment_count'].apply(lambda x: float(x) if pd.notna(x) else None)
+
 		return df
 
-	async def _bulk_update_videos(self, db: AsyncSession, cleaned_df: pd.DataFrame):
-		"""Updates the database with the cleaned data."""
+	async def _bulk_insert_videos(self, db: AsyncSession, cleaned_df: pd.DataFrame):
+		"""Inserts cleaned data into the final Video table and removes from staging."""
 		if cleaned_df.empty:
 			return 0
 
-		# === FIX #2: Convert any remaining np.nan values to None before updating the DB ===
 		cleaned_df = cleaned_df.replace({np.nan: None})
+		insert_data = cleaned_df.to_dict(orient='records')
 		
-		update_data = cleaned_df.to_dict(orient='records')
+		# Ensure pure python types for asyncpg
+		for row in insert_data:
+			if hasattr(row['published_at'], 'to_pydatetime'):
+				row['published_at'] = row['published_at'].to_pydatetime()
+			if pd.isna(row['published_at']):
+				row['published_at'] = None
 		
-		stmt = (
-			update(Video)
-			.where(Video.video_id == bindparam('b_video_id'))
-			.values(
-				description_clean=bindparam('description_clean'),
-				duration_seconds=bindparam('duration_seconds'),
-				duration_minutes=bindparam('duration_minutes'),
-				duration_hours=bindparam('duration_hours'),
-				language_name=bindparam('language_name'),
-				topic_categories_clean=bindparam('topic_categories_clean'),
-				is_cleaned=True  # Mark as cleaned
-			)
-			.execution_options(synchronize_session=False)  # Disable session synchronization for bulk update
-		)
-		
-		update_params = [
-			{
-				'b_video_id': data['video_id'],
-				'description_clean': data['description_clean'],
-				'duration_seconds': data['duration_seconds'],
-				'duration_minutes': data['duration_minutes'],
-				'duration_hours': data['duration_hours'],
-				'language_name': data['language_name'],
-				'topic_categories_clean': data['topic_categories_clean']
+		# UPSERT logic using PostgreSQL native insert
+		stmt = insert(Video).values(insert_data)
+		stmt = stmt.on_conflict_do_update(
+			index_elements=['video_id'],
+			set_={
+				'published_at': stmt.excluded.published_at,
+				'channel_id': stmt.excluded.channel_id,
+				'title': stmt.excluded.title,
+				'description': stmt.excluded.description,
+				'tags': stmt.excluded.tags,
+				'language_name': stmt.excluded.language_name,
+				'duration_seconds': stmt.excluded.duration_seconds,
+				'view_count': stmt.excluded.view_count,
+				'like_count': stmt.excluded.like_count,
+				'favourite_count': stmt.excluded.favourite_count,
+				'comment_count': stmt.excluded.comment_count,
+				'topic_categories': stmt.excluded.topic_categories
 			}
-			for data in update_data
-		]
+		)
 
-		# === FIX #3: Use session.connection() to bypass the ORM Bulk Update mode ===
 		connection = await db.connection()
-		result = await connection.execute(stmt, update_params)
+		await connection.execute(stmt)
+		
+		# Delete processed rows from staging
+		delete_stmt = delete(VideoStaging).where(VideoStaging.video_id.in_(self.batch_video_ids))
+		await connection.execute(delete_stmt)
 
 		await db.commit()
 
-		logger.info(f"Bulk updated {len(update_data)} videos in the database.")
-		return len(update_data) # Return the number of rows we just updated
+		logger.info(f"Bulk inserted {len(insert_data)} videos into final table and cleared staging.")
+		return len(insert_data)
 
 	async def run(self):
 		"""Orchestrates the entire cleaning process."""
@@ -146,7 +162,7 @@ class VideoCleaningService:
 					break
 
 				cleaned_df = self._transform_dataframe(video_df)
-				rows_processed_this_batch = await self._bulk_update_videos(db, cleaned_df)
+				rows_processed_this_batch = await self._bulk_insert_videos(db, cleaned_df)
 				total_processed += rows_processed_this_batch
 
 				# --- FIX: Break if no rows were updated ---

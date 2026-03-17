@@ -13,3 +13,9 @@ pandas
 
 # For environment variable management (for API keys, etc.)
 python-dotenv
+
+# Local NLP Packages
+torch
+transformers
+langdetect
+tqdm

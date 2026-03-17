@@ -14,6 +14,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY main.py .
 COPY src/ /app/src/
 
+# Run the pre-download script to bake the HuggingFace models into the image
+COPY python/download_models.py .
+RUN python download_models.py
+
 # By default, the container will run the enrichment pipeline when started.
 # We can override this command in docker-compose.yml if needed.
 CMD ["python", "main.py", "--enrich-comments"]

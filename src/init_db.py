@@ -15,7 +15,24 @@ async def create_all_tables():
     """Creates all tables defined in the Base metadata from models.py."""
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    logger.info("All tables created successfully.")
+        
+        # Add the new columns manually in case the table already existed
+        # Using IF NOT EXISTS (requires Postgres 9.6+)
+        alter_statements = [
+            "ALTER TABLE comments ADD COLUMN IF NOT EXISTS sentiment_score_positive FLOAT;",
+            "ALTER TABLE comments ADD COLUMN IF NOT EXISTS sentiment_score_negative FLOAT;",
+            "ALTER TABLE comments ADD COLUMN IF NOT EXISTS sentiment_score_neutral FLOAT;",
+            "ALTER TABLE comments ADD COLUMN IF NOT EXISTS category_confidence FLOAT;",
+            "ALTER TABLE comments ADD COLUMN IF NOT EXISTS language_confidence FLOAT;",
+            "ALTER TABLE comments ADD COLUMN IF NOT EXISTS comment_length INTEGER;"
+        ]
+        for statement in alter_statements:
+            try:
+                await conn.execute(text(statement))
+            except Exception as e:
+                logger.warning(f"Error adding column (it might already exist): {e}")
+
+    logger.info("All tables (and new columns) created successfully.")
 
 async def create_hypertable_for_comments(db: AsyncSession):
     """Converts the comments table into a TimescaleDB hypertable."""

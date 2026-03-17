@@ -26,8 +26,8 @@ for file in ./loreal_project_db_data/*.csv; do
   docker cp "$file" $CONTAINER:/tmp/$(basename "$file")
 done
 
-echo "🛠 Importing videos.csv into videos table..."
-docker exec -i $CONTAINER psql -U $DB_USER -d $DB_NAME -c "\copy videos (
+echo "🛠 Importing videos.csv into videos_staging table..."
+docker exec -i $CONTAINER psql -U $DB_USER -d $DB_NAME -c "\copy videos_staging (
   kind, video_id, published_at, channel_id, title, description, tags,
   default_language, default_audio_language, content_duration,
   view_count, like_count, favourite_count, comment_count, topic_categories
