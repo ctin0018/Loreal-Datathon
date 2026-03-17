@@ -14,9 +14,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY main.py .
 COPY src/ /app/src/
 
-# Run the pre-download script to bake the HuggingFace models into the image
-COPY python/download_models.py .
-RUN python download_models.py
+# Download NLP Models into the Docker Image during build time
+COPY scripts/download_models.py scripts/download_models.py
+RUN python scripts/download_models.py
 
 # By default, the container will run the enrichment pipeline when started.
 # We can override this command in docker-compose.yml if needed.

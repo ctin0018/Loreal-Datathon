@@ -21,7 +21,7 @@ echo "📑 Initializing DB schema..."
 docker compose run --rm enrichment-service python -m src.init_db
 
 echo "📂 Copying CSV files into container..."
-for file in ./loreal_project_db_data/*.csv; do
+for file in ./data/*.csv; do
   echo "   -> $(basename "$file")"
   docker cp "$file" $CONTAINER:/tmp/$(basename "$file")
 done

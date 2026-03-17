@@ -1,4 +1,4 @@
 venv
 .env
-loreal_project_db_data
+data
 __pycache__
